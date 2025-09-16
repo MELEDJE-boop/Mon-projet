@@ -1,0 +1,345 @@
+# My-work
+from tkinter import *
+import tkinter as tk
+from tkinter import filedialog
+import pandas as pd
+import numpy as np
+import os
+
+# --- Interface principale ---
+interf = tk.Tk()
+interf.geometry("1000x700")
+interf.title('Analyse Financière')
+interf.configure(bg='#ecf0f1')  # fond gris clair doux
+interf.resizable(height=True, width=True)
+
+# --- En-tête ---
+label = Label(interf, text='ANALYSE FINANCIÈRE',
+              font=('Verdana', 20, 'bold'),
+              fg='#2c3e50', bg='#ecf0f1')
+label.pack(pady=(20, 10))
+
+sub_label = Label(interf, text='Sélectionnez un fichier Excel pour commencer l’analyse',
+                  font=('Verdana', 12),
+                  fg='#34495e', bg='#ecf0f1')
+sub_label.pack(pady=(0, 20))
+
+# Zone d’affichage du chemin (lecture seule)
+ma_variable = StringVar()
+Entree = Entry(interf, textvariable=ma_variable, width=50, state="readonly",
+               font=('Arial', 11))
+Entree.pack(pady=5)
+
+# --- Zone de messages (erreurs/succès) ---
+message = Label(interf, text="", font=('Verdana', 10), fg="red", bg='#ecf0f1')
+message.pack(pady=10)
+
+# --- Fonction de calcul ---
+def CR():
+    try:
+        fichier = filedialog.askopenfilename(
+            title="Choisir un fichier Excel",
+            filetypes=[("Fichiers Excel", "*.xlsx *.xls")]
+        )
+        if not fichier:
+            message.config(text="⚠ Aucun fichier sélectionné", fg="red")
+            return
+        
+        ma_variable.set(fichier)
+        Balance = pd.read_excel(fichier)
+
+        # --- Normalisation des colonnes si elles sont < 8 ---
+        Balance=Balance.drop_duplicates()
+        if Balance.shape[1] < 8:
+            Balance.insert(4, 'C', np.nan)
+            Balance.insert(5, 'D', np.nan)
+        Colonne = Balance.columns.tolist()
+        col = ['Compte','Libellé','Débit','Crédit','Débit.1','Crédit.1','Débit.2','Crédit.2']
+        for i in range(Balance.shape[1]):
+            Balance = Balance.rename(columns={Colonne[i]: col[i]})
+
+        # --- Analyse du résultat ---
+        La, Lb, Lc = [], [], []
+        LAMa, LAMb, LAMc = [], [], []
+        LCa, LCb, LCc = [], [], []
+        LRSa, LRSb, LRSc = [], [], []
+        LCTa, LCTb, LCTc = [], [], []
+        LCOa, LCOb, LCOc = [], [], []
+        LPOa, LPOb, LPOc = [], [], []
+        L1Ca, L1Cb, L1Cc = [], [], []
+
+        for i in range(len(Balance)):
+            a = str(Balance.loc[i, "Compte"])
+            # Comptes de charges et produits
+            if (a[0:3]) == "701" or (a[0:3]) == "601" or (a[0:4]) == "6031":
+                LCOa.append(Balance.loc[i, "Libellé"])
+                LCOb.append(Balance.loc[i, "Débit.2"])
+                LCOc.append(Balance.loc[i, "Crédit.2"])
+            elif (a[0:3]) in ["702", "703", "704", "705", "706", "707"]:
+                LPOa.append(Balance.loc[i, "Libellé"])
+                LPOb.append(Balance.loc[i, "Débit.2"])
+                LPOc.append(Balance.loc[i, "Crédit.2"])
+            elif (a[0:2]) in ["73", "72", "71", "75", "61", "62", "63", "64", "65"] or \
+                 (a[0:3]) in ["781", "602", "604", "605", "608"] or \
+                 (a[0:4]) in ["6032", "6033"]:
+                LAMa.append(Balance.loc[i, "Libellé"])
+                LAMb.append(Balance.loc[i, "Débit.2"])
+                LAMc.append(Balance.loc[i, "Crédit.2"])
+            elif (a[0:2]) == "66":
+                LRSa.append(Balance.loc[i, "Libellé"])
+                LRSb.append(Balance.loc[i, "Débit.2"])
+                LRSc.append(Balance.loc[i, "Crédit.2"])
+            elif (a[0:3]) in ["791", "798", "799", "681", "691"]:
+                L1Ca.append(Balance.loc[i, "Libellé"])
+                L1Cb.append(Balance.loc[i, "Débit.2"])
+                L1Cc.append(Balance.loc[i, "Crédit.2"])
+            elif (a[0:2]) in ["77", "67"] or (a[0:3]) in ["797", "787", "697"]:
+                La.append(Balance.loc[i, "Libellé"])
+                Lb.append(Balance.loc[i, "Débit.2"])
+                Lc.append(Balance.loc[i, "Crédit.2"])
+            elif (a[0:2]) in ["82", "84", "86", "88", "81", "83", "85"]:
+                LCTa.append(Balance.loc[i, "Libellé"])
+                LCTb.append(Balance.loc[i, "Débit.2"])
+                LCTc.append(Balance.loc[i, "Crédit.2"])
+            elif (a[0:2]) in ["87", "89"]:
+                LCa.append(Balance.loc[i, "Libellé"])
+                LCb.append(Balance.loc[i, "Débit.2"])
+                LCc.append(Balance.loc[i, "Crédit.2"])
+
+        # Construction DataFrames et calcul du compte de résultat
+        CA = pd.DataFrame({"Libellé": LCOa, "Débit.2": LCOb, "Crédit.2": LCOc})
+        EBE = pd.DataFrame({"Libellé": LRSa, "Débit.2": LRSb, "Crédit.2": LRSc})
+        VA = pd.DataFrame({"Libellé": LAMa, "Débit.2": LAMb, "Crédit.2": LAMc})
+        RE = pd.DataFrame({"Libellé": L1Ca, "Débit.2": L1Cb, "Crédit.2": L1Cc})
+        RF = pd.DataFrame({"Libellé": La, "Débit.2": Lb, "Crédit.2": Lc})
+        RHAO = pd.DataFrame({"Libellé": LCTa, "Débit.2": LCTb, "Crédit.2": LCTc})
+        RN = pd.DataFrame({"Libellé": LCa, "Débit.2": LCb, "Crédit.2": LCc})
+        MC = pd.DataFrame({"Libellé": LPOa, "Débit.2": LPOb, "Crédit.2": LPOc})
+
+        MC.loc[len(MC)] = ["Marge Commerciale", sum(LPOb), sum(LPOc)]
+        I = pd.DataFrame(CA)
+        I.loc[len(I)] = ["Chiffre d'affaire", sum(LCOb)+sum(LPOb), sum(LCOc)+sum(LPOc)]
+        Y = pd.DataFrame(VA)
+        Y.loc[len(Y)] = ["VA", sum(LAMb)+sum(LPOb)+sum(LCOb), sum(LAMc)+sum(LPOc)+sum(LCOc)]
+        Z = pd.DataFrame(EBE)
+        Z.loc[len(Z)] = ["EBE", sum(LAMb)+sum(LPOb)+sum(LRSb)+sum(LCOb), sum(LAMc)+sum(LPOc)+sum(LRSc)+sum(LCOc)]
+        P = pd.DataFrame(RE)
+        P.loc[len(P)] = ["RE", sum(LAMb)+sum(LPOb)+sum(LRSb)+sum(L1Cb)+sum(LCOb),
+                         sum(LAMc)+sum(LPOc)+sum(LRSc)+sum(L1Cc)+sum(LCOb)]
+        L = pd.DataFrame(RF)
+        L.loc[len(L)] = ["RF", sum(Lb), sum(Lc)]
+        W = pd.DataFrame(RHAO)
+        W.loc[len(W)] = ["RHAO", sum(LCTb), sum(LCTc)]
+        T = pd.DataFrame(RN)
+        T.loc[len(T)] = ["RN", sum(LAMb)+sum(LPOb)+sum(LRSb)+sum(LCb)+sum(Lb)+sum(LCTb)+sum(L1Cb),
+                         sum(LAMc)+sum(LPOc)+sum(LRSc)+sum(LCc)+sum(Lc)+sum(LCTc)+sum(L1Cc)]
+
+        Compte_re = pd.concat([MC, I, Y, Z, P, L, W, T], ignore_index=True)
+        Compte_re['Montant'] = Compte_re['Crédit.2'] - Compte_re['Débit.2']
+        Compte_re = Compte_re.drop(columns=['Débit.2', 'Crédit.2'])
+
+        # --- Génération du bilan (inchangé dans les calculs) ---
+        RN = Compte_re.iloc[-1]["Montant"]
+        found = False
+        for i in range(len(Balance)):
+            if str(Balance.loc[i,"Compte"]).startswith("1301"):
+                Balance.loc[i,"Crédit.2"] = RN
+                found = True
+                break
+            if not found:
+                Balance.loc[len(Balance)] = ['10130000000','Capital Investi',0,0,0,0,0,RN]
+
+        Balance = Balance.drop_duplicates()
+
+        # Reconstitution colonnes pour le bilan
+        La, Lb, Lc = [], [], []
+        LAMa, LAMb, LAMc = [], [], []
+        LCa, LCb, LCc = [], [], []
+        LRSa, LRSb, LRSc = [], [], []
+        LCTa, LCTb, LCTc = [], [], []
+        L1Ca, L1Cb, L1Cc = [], [], []
+
+        for i in range(len(Balance)):
+            a = str(Balance.loc[i,"Compte"])
+            if a[0]=="2":
+                LAMa.append(Balance.loc[i,"Libellé"])
+                LAMb.append(Balance.loc[i,"Débit.2"])
+                LAMc.append(Balance.loc[i,"Crédit.2"])
+            elif a[0]=="1":
+                LRSa.append(Balance.loc[i,"Libellé"])
+                LRSb.append(Balance.loc[i,"Débit.2"])
+                LRSc.append(Balance.loc[i,"Crédit.2"])
+            elif a[0]=="3":
+                La.append(Balance.loc[i,"Libellé"])
+                Lb.append(Balance.loc[i,"Débit.2"])
+                Lc.append(Balance.loc[i,"Crédit.2"])
+            elif a[0]=="4":
+                if Balance.loc[i,"Débit.2"]!=0:
+                    La.append(Balance.loc[i,"Libellé"])
+                    Lb.append(Balance.loc[i,"Débit.2"])
+                    Lc.append(Balance.loc[i,"Crédit.2"])
+                else:
+                    LCTa.append(Balance.loc[i,"Libellé"])
+                    LCTb.append(Balance.loc[i,"Débit.2"])
+                    LCTc.append(Balance.loc[i,"Crédit.2"])
+            elif a[0]=="5":
+                if Balance.loc[i,"Débit.2"]!=0:
+                    LCa.append(Balance.loc[i,"Libellé"])
+                    LCb.append(Balance.loc[i,"Débit.2"])
+                    LCc.append(Balance.loc[i,"Crédit.2"])
+                else:
+                    L1Ca.append(Balance.loc[i,"Libellé"])
+                    L1Cb.append(Balance.loc[i,"Débit.2"])
+                    L1Cc.append(Balance.loc[i,"Crédit.2"])
+        
+        RS={"Libellé":LRSa,"Débit.2":LRSb,"Crédit.2":LRSc}
+        AM={"Libellé":LAMa,"Débit.2":LAMb,"Crédit.2":LAMc}
+        ST={"Libellé":La,"Débit.2":Lb,"Crédit.2":Lc}
+        CD={"Libellé":LCTa,"Débit.2":LCTb,"Crédit.2":LCTc}
+        Tr={"Libellé":LCa,"Débit.2":LCb,"Crédit.2":LCc}
+        Tr1={"Libellé":L1Ca,"Débit.2":L1Cb,"Crédit.2":L1Cc}
+
+        o=pd.DataFrame(AM)
+        l=pd.DataFrame(RS)
+        l['Crédit.2']=l['Crédit.2']-l['Débit.2']
+        ARS = pd.concat([o,l],ignore_index=True, axis=1)
+        ARS.loc[len(ARS)]=["TOTAL ACTIF IMMOBILISE",ARS[1].sum(),ARS[2].sum(),"TOTAL PASSIF LT",ARS[4].sum(),ARS[5].sum()]
+        ARC=pd.concat([pd.DataFrame(ST),pd.DataFrame(CD)],ignore_index=True,axis=1)
+        ARC.loc[len(ARC)]=["TOTAL ACTIF CIRCULANT",ARC[1].sum(),ARC[2].sum(),"TOTAL PASSIF CIRCULANT",ARC[4].sum(),ARC[5].sum()]
+        TT=pd.concat([pd.DataFrame(Tr),pd.DataFrame(Tr1)],ignore_index=True,axis=1)
+        TT.loc[len(TT)]=["TRESORERIE ACTIF",TT[1].sum(),TT[2].sum(),"TRESORERIE PASSIF",TT[4].sum(),TT[5].sum()]
+        A=pd.concat([ARS,ARC],ignore_index=True)
+        B=pd.concat([A,TT],ignore_index=True)
+        C=B.set_index(0)
+        B.loc[len(B)] = ["TOTAL ACTIF",C.loc["TRESORERIE ACTIF",1]+C.loc["TOTAL ACTIF CIRCULANT",1]+C.loc["TOTAL ACTIF IMMOBILISE",1],C.loc["TRESORERIE ACTIF",2]+C.loc["TOTAL ACTIF CIRCULANT",2]+C.loc["TOTAL ACTIF IMMOBILISE",2],"TOTAL PASSIF",C.loc["TRESORERIE ACTIF",4]+C.loc["TOTAL ACTIF CIRCULANT",4]+C.loc["TOTAL ACTIF IMMOBILISE",4],C.loc["TRESORERIE ACTIF",5]+C.loc["TOTAL ACTIF CIRCULANT",5]+C.loc["TOTAL ACTIF IMMOBILISE",5]]
+        B.rename(columns={0:'ACTIF',1:'VALEUR1',2:'CREDIT',3:'PASSIF',4:'Débit1',5:'VALEUR'}, inplace=True)
+        H = B.fillna(" ")
+        H = H.set_index("ACTIF")
+        H.loc["TOTAL ACTIF","VALEUR1"]=H.loc["TOTAL ACTIF","VALEUR1"]-H.loc["TOTAL ACTIF","CREDIT"]
+        H=H.drop(columns=['CREDIT'])
+        H=H.drop(columns=['Débit1'])
+        H=H.reset_index(drop=False)
+        
+       
+        H=H.set_index('ACTIF')
+        print()
+        Compte_re.set_index('Libellé',inplace=True)
+        liststock=[]
+        listcapital=[]
+        dettesfin=[]
+        chargefin=[]
+        creance=[]
+        ventes=[]
+        TVA=[]
+        result=[]
+        for i in range(len(Balance)):
+            a=str(Balance.loc[i,"Compte"])
+            if a[0]=='3':
+               liststock.append(Balance.loc[i,"Débit.2"])
+            elif (a[0]+a[1]) in ["10","11","12","13","14"]:
+               listcapital.append(Balance.loc[i,"Crédit.2"])
+            elif (a[0]+a[1]) in ["16","17"] or (a[0]+a[1]+a[2]=="519") :
+               dettesfin.append(Balance.loc[i,"Crédit.2"])
+            elif (a[0]+a[1])=="66":
+               chargefin.append(Balance.loc[i,"Débit.2"])
+            elif (a[0]+a[1])=="41":
+               creance.append(Balance.loc[i,"Débit.2"])
+            elif (a[0]+a[1])=="70":                        #Together
+               ventes.append(Balance.loc[i,"Crédit.2"])
+            elif (a[0]+a[1]+a[2]+a[3])=="4457":            #Together
+               TVA.append(Balance.loc[i,"Crédit.2"])
+        Tab_Ratios=pd.DataFrame({"Ratios":["Ratio L.courante","Ratio de L.réduite","ROE","ROA","MARTE NETTE","Ratio d'endettement","Coverage","Ratio de stock","Ratio de Créances(En jour)","Taux d'intégration","Taux de marge d'EBE","Taux de marge du RE","Taux de marge du RF","Taux de marge du RHAO"],
+                        "Valeurs":[H.loc["TOTAL ACTIF CIRCULANT","VALEUR1"]/H.loc["TOTAL ACTIF CIRCULANT","VALEUR"],(H.loc["TOTAL ACTIF CIRCULANT","VALEUR1"]-sum(liststock))/H.loc["TOTAL ACTIF CIRCULANT","VALEUR"],Compte_re.loc["RN","Montant"]/sum(listcapital),Compte_re.loc["RN","Montant"]/H.loc["TOTAL ACTIF","VALEUR1"],Compte_re.loc["RN","Montant"]/Compte_re.loc["Chiffre d'affaire","Montant"],sum(dettesfin)/sum(listcapital),Compte_re.loc["RE","Montant"]/sum(chargefin),0,(sum(creance)*365)/(sum(ventes)+sum(TVA)),Compte_re.loc["VA","Montant"]/Compte_re.loc["Chiffre d'affaire","Montant"],Compte_re.loc["EBE","Montant"]/Compte_re.loc["Chiffre d'affaire","Montant"],Compte_re.loc["RE","Montant"]/Compte_re.loc["Chiffre d'affaire","Montant"],Compte_re.loc["RF","Montant"]/Compte_re.loc["Chiffre d'affaire","Montant"],Compte_re.loc["RHAO","Montant"]/Compte_re.loc["Chiffre d'affaire","Montant"]]})  
+        print(Tab_Ratios)
+        zone_affichage = Text(interf, height=15, width=80, font=('Arial', 15))
+        zone_affichage.pack(pady=5)
+        zone_affichage.config(state=NORMAL)  # permet d'écrire dedans          
+        FRNG=H.loc["TOTAL ACTIF IMMOBILISE","VALEUR"]-H.loc["TOTAL ACTIF IMMOBILISE","VALEUR1"]
+        if FRNG<0:
+            zone_affichage.insert(END,f'Les ressources stables ne couvrent pas les actifs immobilisés.FRNG={FRNG}\n')
+        elif FRNG>0:
+            zone_affichage.insert(END,f'Les ressources stables couvrent les actifs immobilisés.FRNG={FRNG}\n')
+        else:
+            zone_affichage.insert(END,f'Sécurité financière.FRNG={FRNG}\n')
+    
+        #Cas de BFR
+        BFR=H.loc["TOTAL ACTIF CIRCULANT","VALEUR1"]-H.loc["TOTAL ACTIF CIRCULANT","VALEUR"]
+        if BFR>0:
+            zone_affichage.insert(END,f'Nous a besoin de plus de dettes à court terme ou autres passif circulant....BFR={BFR}\n')
+        elif BFR<0:
+            zone_affichage.insert(END,f'Nous n"avons pas de besoin BFR={BFR}\n')
+        else:
+            zone_affichage.insert(END,f'Equilibre BFR={BFR}\n')
+        #Cas du TNT
+        zone_affichage.insert(END,f"TNT={FRNG-BFR}")
+
+        print('\nQuelques interprétations sur les ratios.')
+
+        listvalue=[1,1,0.15,0.05,0.2,1,1,2,60,0.20,0.20,0.15,0,0,0.20]
+        for i in range(len(Tab_Ratios)):
+            if Tab_Ratios.loc[i,"Valeurs"]>listvalue[i]:
+                zone_affichage.insert(END,f'\n {i} )-{Tab_Ratios.loc[i,"Ratios"]} est supérieur à {listvalue[i]}')
+            elif Tab_Ratios.loc[i,"Valeurs"]==listvalue[i]:
+                zone_affichage.insert(END,f'\n {i} )-{Tab_Ratios.loc[i,"Ratios"]} = {listvalue[i]}')
+            else:
+                 zone_affichage.insert(END,f'\n {i} )- {Tab_Ratios.loc[i,"Ratios"]} est inférieur à {listvalue[i]}')
+        import tkinter as tk
+        from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+        import matplotlib.pyplot as plt
+
+        Ratios = Tab_Ratios["Ratios"].tolist()
+        Valeurs = Tab_Ratios["Valeurs"].tolist()
+
+        # Créer la fenêtre Tkinter
+        root = tk.Tk()
+        root.title("Diagramme des Ratios")
+        root.geometry("600x350")
+
+        # Créer une figure matplotlib
+        fig, ax = plt.subplots(figsize=(10, 5))
+
+        # Couleurs conditionnelles
+        colors = ['red' if val < 0 else 'blue' for val in Valeurs]
+
+        # Diagramme en barres
+        ax.bar(Ratios, Valeurs, color=colors)
+        ax.set_xlabel("Ratios")
+        ax.set_ylabel("Valeurs")
+        ax.set_title("Diagramme des ratios", fontsize=16)
+        plt.setp(ax.get_xticklabels(), rotation=80)  # rotation des labels
+
+# Intégrer la figure dans Tkinter
+        canvas = FigureCanvasTkAgg(fig, master=root)
+        canvas.draw()
+        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
+        root.mainloop()
+        
+        Compte_re.reset_index(drop=False)
+         # --- Nom dynamique basé sur fichier original ---
+        base_name = os.path.splitext(os.path.basename(fichier))[0]
+        output_file = base_name + "_analyse.xlsx"
+        
+        message.config(text=f"✅ Analyse sauvegardée dans {output_file}", fg="green")
+        # --- Sauvegarde dans un seul fichier avec plusieurs feuilles ---
+        with pd.ExcelWriter(output_file, engine="openpyxl") as writer:
+            Compte_re.to_excel(writer, sheet_name="Compte de Résultat", index=False)
+            H.to_excel(writer, sheet_name="Bilan", index=False)
+            #Tab_Ratios.to_excel(writer, sheet_name="Table des Ratios", index=False) 
+                     
+    except Exception as e:
+        message.config(text=f"❌ Erreur : {e}", fg="red")
+    
+# --- Bouton moderne ---
+but = Button(interf, text='📂 Sélectionner et Analyser', 
+             bg='#2980b9', fg='white', font=('Verdana', 12, 'bold'), 
+             relief="flat", padx=15, pady=10, command=CR)
+but.pack(pady=30)
+
+# --- Footer discret ---
+footer = Label(interf, text='© 2025 - Analyse Financière', 
+               font=('Verdana', 9), fg='#7f8c8d', bg='#ecf0f1')
+footer.pack(side="bottom", pady=10)
+
+# --- Lancement ---
+interf.mainloop()
