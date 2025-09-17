@@ -5,7 +5,7 @@ from tkinter import filedialog
 import pandas as pd
 import numpy as np
 import os
-
+#Création de l'interface
 # --- Interface principale ---
 interf = tk.Tk()
 interf.geometry("1000x700")
@@ -34,6 +34,12 @@ Entree.pack(pady=5)
 message = Label(interf, text="", font=('Verdana', 10), fg="red", bg='#ecf0f1')
 message.pack(pady=10)
 
+#D'abord, nous avons la création d'une fonction qui permettra de recevoir la balance par l'auditeur 
+#Elle marche exactement sur les tableaux de 6 ou 8 colonnes
+#Ensuite elle va chercher les différents éléments du compte de résultat à l'aide de leur numéro de compte dans la balance entrée(Voir le Syscohada)
+#Attention à ce que les numéros de compte soient bien corrects
+#Une fois les éléments regroupés, on va les rassembler dans des listes avec les montants(Débit/Crédit)
+#Les montants dont il s'agit sont ceux en fin d'exercice
 # --- Fonction de calcul ---
 def CR():
     try:
@@ -68,6 +74,7 @@ def CR():
         LPOa, LPOb, LPOc = [], [], []
         L1Ca, L1Cb, L1Cc = [], [], []
 
+#Recherche des éléments par numéro de compte et leur ajout dans une liste(liste qui garde le libellé,Débit,Crédit)
         for i in range(len(Balance)):
             a = str(Balance.loc[i, "Compte"])
             # Comptes de charges et produits
@@ -106,7 +113,7 @@ def CR():
                 LCb.append(Balance.loc[i, "Débit.2"])
                 LCc.append(Balance.loc[i, "Crédit.2"])
 
-        # Construction DataFrames et calcul du compte de résultat
+        # Construction DataFrames et  précalcul des soldes intermédiaires de gestion
         CA = pd.DataFrame({"Libellé": LCOa, "Débit.2": LCOb, "Crédit.2": LCOc})
         EBE = pd.DataFrame({"Libellé": LRSa, "Débit.2": LRSb, "Crédit.2": LRSc})
         VA = pd.DataFrame({"Libellé": LAMa, "Débit.2": LAMb, "Crédit.2": LAMc})
@@ -115,7 +122,8 @@ def CR():
         RHAO = pd.DataFrame({"Libellé": LCTa, "Débit.2": LCTb, "Crédit.2": LCTc})
         RN = pd.DataFrame({"Libellé": LCa, "Débit.2": LCb, "Crédit.2": LCc})
         MC = pd.DataFrame({"Libellé": LPOa, "Débit.2": LPOb, "Crédit.2": LPOc})
-
+   #Ici il s'agit du calcul des SIG  et de concatener les dataframe avec leur éléments constitutifs en ajoutant le SIG concerné en fin
+   #En fin de compte, nous allons ajouter les dataframe sous chacun des autres pour avoir les résultats en cascade 
         MC.loc[len(MC)] = ["Marge Commerciale", sum(LPOb), sum(LPOc)]
         I = pd.DataFrame(CA)
         I.loc[len(I)] = ["Chiffre d'affaire", sum(LCOb)+sum(LPOb), sum(LCOc)+sum(LPOc)]
@@ -137,6 +145,9 @@ def CR():
         Compte_re = pd.concat([MC, I, Y, Z, P, L, W, T], ignore_index=True)
         Compte_re['Montant'] = Compte_re['Crédit.2'] - Compte_re['Débit.2']
         Compte_re = Compte_re.drop(columns=['Débit.2', 'Crédit.2'])
+#Génération du bilan à l'aide des numéro de compte, on va en l'occurence s'appuyer sur les premiers chiffres
+#Pour la suite, c'est le même chemmin que le compte du résultat(création des listes, recherche des éléments...),
+#Par contre ici on va chercher les grandes lignes du passif et des actifs
 
         # --- Génération du bilan (inchangé dans les calculs) ---
         RN = Compte_re.iloc[-1]["Montant"]
@@ -219,7 +230,8 @@ def CR():
         H=H.drop(columns=['CREDIT'])
         H=H.drop(columns=['Débit1'])
         H=H.reset_index(drop=False)
-        
+
+        #Calcul de quelques ratios qui seront repectoriés dans un tableau
        
         H=H.set_index('ACTIF')
         print()
@@ -253,7 +265,10 @@ def CR():
         print(Tab_Ratios)
         zone_affichage = Text(interf, height=15, width=80, font=('Arial', 15))
         zone_affichage.pack(pady=5)
-        zone_affichage.config(state=NORMAL)  # permet d'écrire dedans          
+        zone_affichage.config(state=NORMAL)  # permet d'écrire dedans  
+        
+# on va calculer le BFR,FRNG,TNT et faire quelques comparaisons
+
         FRNG=H.loc["TOTAL ACTIF IMMOBILISE","VALEUR"]-H.loc["TOTAL ACTIF IMMOBILISE","VALEUR1"]
         if FRNG<0:
             zone_affichage.insert(END,f'Les ressources stables ne couvrent pas les actifs immobilisés.FRNG={FRNG}\n')
@@ -274,7 +289,7 @@ def CR():
         zone_affichage.insert(END,f"TNT={FRNG-BFR}")
 
         print('\nQuelques interprétations sur les ratios.')
-
+        # Comparaison des ratios calculés et quelques interprétattions
         listvalue=[1,1,0.15,0.05,0.2,1,1,2,60,0.20,0.20,0.15,0,0,0.20]
         for i in range(len(Tab_Ratios)):
             if Tab_Ratios.loc[i,"Valeurs"]>listvalue[i]:
@@ -283,6 +298,7 @@ def CR():
                 zone_affichage.insert(END,f'\n {i} )-{Tab_Ratios.loc[i,"Ratios"]} = {listvalue[i]}')
             else:
                  zone_affichage.insert(END,f'\n {i} )- {Tab_Ratios.loc[i,"Ratios"]} est inférieur à {listvalue[i]}')
+#Enfin on passe à la création de l'interface pour faciliter l'utilisation
         import tkinter as tk
         from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
         import matplotlib.pyplot as plt
@@ -343,3 +359,8 @@ footer.pack(side="bottom", pady=10)
 
 # --- Lancement ---
 interf.mainloop()
+            #Travail restant
+#Pour l'instant,l'app ne fournir que le bilan et le P&L, il faut donc une mise à jour pour la suite(Interprétation,BFR,FRNG,TNT,Tab_ratios...)
+#Par ailleurs, les formules du ratio de stock et coverage restent douteuses 
+#Comparaison entre deux années consécutives
+#la courbe des ratios est à revoir
